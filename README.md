@@ -1,74 +1,88 @@
 # deadband-rs
 
-Forgemaster's vessel — the Cocapn fleet constraint-theory specialist workspace. Contains the `deadband` crate, 43+ clock-sync and drift experiments, fleet coordination tools, and the constraint-theory proof portfolio.
+Rust library for deadband detection, noise filtering, and constraint-theory math primitives — the numerical backbone of the Cocapn fleet's tolerance system.
 
-## What's In Here
+## Install
 
-### The `deadband` Crate
-
-A Rust library implementing deadband filtering and constraint-theory math primitives:
-
-| Module | What It Does |
-|--------|-------------|
-| `div360` | Exact integer division by 360 for angle arithmetic (zero drift) |
-| `eisenstein` | Snap Cartesian points to nearest Eisenstein integer lattice point |
-| `bma` | Berlekamp-Massey algorithm over GF(2) — find shortest LFSR for a binary sequence |
-| `hpdf` | Uniform sampling over a regular hexagon (rejection method) |
-| `fib_spline` | Fibonacci spiral vector search on circle/sphere |
-| `shell` | 2×2 matrix eigendecomposition and dynamical classification (node, saddle, spiral, center) |
-
-### Experiments (43+)
-
-Systematic exploration of clock synchronization algorithms under fleet conditions:
-
-- **PTP vs NTP vs Cristian vs EWMA** head-to-head comparisons
-- **Production factorials** — combined stress testing
-- **Drift analysis** — bounded vs unbounded drift under various topologies
-- **Anti-fragile timing** — PTP confirmed most consistent under adversarial conditions
-
-### Fleet Infrastructure
-
-- `.keeper/` — Heartbeat and monitoring
-- `.local-plato/` — Local PLATO knowledge base
-- `captains-log/` — Session state and mission tracking
-- `portfolio/` — Constraint-theory proof products
-- `vessel/` — Ship systems (bridge, engine room, crew)
-
-## The Deadband Concept
-
-A deadband filter eliminates noise below a perceptibility threshold:
-
+```toml
+[dependencies]
+deadband = { git = "https://github.com/SuperInstance/deadband-rs" }
 ```
-L ≤ k  →  not perceivable (filtered)
-L > k  →  perceivable (passed through)
-```
-
-This is the same principle used in thermostat hysteresis, audio noise gates, and constraint-theory tolerance — if the change doesn't matter, don't propagate it.
-
-## Building the Crate
 
 ```bash
 cargo build --release
 cargo test
 ```
 
-The binary (`src/main.rs`) runs an interactive demo of all modules.
+## Minimal Working Example
 
-## Key Results
+```rust
+use deadband::div360::div360;
+use deadband::eisenstein::snap;
+use deadband::bma::berlekamp_massey;
 
-- `/360 arithmetic`: **zero drift** across all 129,600 integer angle pairs
-- **PTP**: strictly dominant over Cristian/EWMA/hybrid for fleet clock sync
-- **Churn fix**: warm-up queues eliminate unbounded drift (boot-to-mean = 99.97% reduction)
-- **Production config**: combined stress breaks individual component guarantees — documented failure mode
+// Exact angle arithmetic — zero floating-point drift
+let (q, r) = div360(730);  // (2, 10) — 730° = 2 full rotations + 10°
 
-## Fleet Context
+// Snap to nearest Eisenstein lattice point
+let (n, m, err) = snap(3.7, 2.1);  // nearest point in Z[ω]
 
-This is Forgemaster's workspace in the Cocapn fleet (SuperInstance org). The fleet runs 9 agents coordinated through I2I protocol and PLATO knowledge system.
+// Find shortest LFSR for a binary sequence
+let seq = vec![1, 0, 1, 1, 0, 1, 0, 1, 1];
+let (poly, len) = berlekamp_massey(&seq);
+```
 
-Related repos:
-- [constraint-theory-core](https://github.com/SuperInstance/constraint-theory-core) — Constraint engine library
-- [i2i-protocol](https://github.com/SuperInstance/i2i-protocol) — Inter-agent messaging
-- [superinstance-ffi](https://github.com/SuperInstance/superinstance-ffi) — C FFI bindings for fleet math
+## Key Concept: Deadband Filtering
+
+A deadband filter suppresses changes below a perceptibility threshold:
+
+```
+|Δ| ≤ k  →  not perceivable → output stays at last significant value
+|Δ| > k  →  perceivable     → output passes through
+```
+
+This is thermostat hysteresis, audio noise gating, and constraint tolerance — all the same idea. If the change doesn't matter, don't propagate it. The fleet uses deadband filtering to avoid thrashing on sub-threshold fluctuations in agent scores, clock drift, and constraint violations.
+
+### Modules
+
+| Module | What It Does |
+|--------|-------------|
+| `div360` | Exact integer ÷360 for angle arithmetic — zero drift across 129,600 integer pairs |
+| `eisenstein` | Snap Cartesian points to nearest Eisenstein integer (hexagonal lattice Z[ω]) |
+| `bma` | Berlekamp-Massey algorithm over GF(2) — shortest LFSR for binary sequences |
+| `hpdf` | Uniform sampling over regular hexagons (rejection method) |
+| `fib_spline` | Fibonacci spiral vector search — near-uniform angular coverage in O(√n) |
+| `shell` | 2×2 matrix eigendecomposition — classify dynamics (node, saddle, spiral, center) |
+
+### When to Use Which
+
+- **`div360`** — Any angle math. Replaces `f64` modulo with exact integer remainders.
+- **`eisenstein`** — Quantization to hexagonal grid. Used by the fleet's coordinate snap.
+- **`bma`** — Sequence analysis, anomaly detection in binary streams.
+- **`hpdf`** — Monte Carlo sampling in hexagonal domains.
+- **`fib_spline`** — Direction search, interpolation over sparse angle grids.
+- **`shell`** — Stability analysis of 2D linear systems.
+
+## Features
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `python` | off | Python bindings via PyO3 |
+| `simd` | off | SIMD-accelerated filters |
+
+## Running the Demo
+
+```bash
+cargo run
+```
+
+Runs an interactive test of all modules: /360 arithmetic verification, Eisenstein snap accuracy, Fibonacci spiral coverage, and 2×2 matrix classification.
+
+## Related Repos
+
+- [superinstance-ffi](https://github.com/SuperInstance/superinstance-ffi) — C/WASM bindings exposing these primitives
+- [holonomy-consensus](https://github.com/SuperInstance/holonomy-consensus) — Fleet consensus protocol using Eisenstein lattice
+- [constraint-theory-core](https://github.com/SuperInstance/constraint-theory-core) — Constraint engine built on these primitives
 
 ## License
 
